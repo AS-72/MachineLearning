@@ -1,0 +1,284 @@
+---
+title: "Assignment 2"
+author: "Anthony Stachowski"
+date: "9/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For this analysis we will be using financial data. The dataset is stored as `financial_data.rda` which can be loaded in by running the below command if the file is located in your working directory or else by accessing the file through file->open file
+
+Load necessary libraries:
+
+```{r load libraries}
+
+library(ggplot2) # load ggplot
+library(reshape2) # load reshape 2
+library(glmnet) # Load glmnet
+library(plotmo) # for plot_glmnet
+
+```
+
+
+```{r Load Data 2}
+load("financial_data.rda") # Load fiancial dataset
+```
+
+We can view the dataset by running the `head()`, `tail()`, and `dim()` commands to view the first 5 rows, last 5 rows, and dimension of the dataset respectively.
+
+```{r Financial Data}
+head(fin_dat) # View first five rows of financial data
+tail(fin_dat) # View last five rows of finacial data
+dim(fin_dat) # View dimension of financial data
+```
+
+We can get a summary of the variables using the `summary()` command:
+
+```{r Summarize fin data}
+summary(fin_dat) # Summarize financial data
+```
+
+The variables we have available for this analysis are:
+
+* Revenue
+* Revenue.Growth
+* Cost.of.Revenue
+* Gross.Profit
+* R.D.Expenses
+* SG.A.Expense -  Selling, General and Administrative Expenses
+* Operating.Expenses 
+* Operating.Income
+* Interest.Expense 
+* Earnings.before.Tax
+* Income.Tax.Expense
+* Net.Income...Non.Controlling.int
+* Net.Income...Discontinued.ops
+* Net.Income
+* Preferred.Dividends
+* Net.Income.Com
+* EPS - Earnings per stock
+* EPS.Diluted - 
+* Weighted.Average.Shs.Out
+* Weighted.Average.Shs.Out..Dil 
+* Dividend.per.share
+* Gross.Margin
+* EBITDA.Margin - Earnings before interest, taxes, depreciation, and amortization MARGIN
+* EBIT.MARGIN - Operating margin
+* Profit.Margin
+* Free.Cash.Flow.margin
+* EBITDA - Earnings before interest, taxes, depreciation, and amortization
+* EBIT - Earnings before interest and taxes
+* Consolidated.Income - 
+* Earnings.Before.Tax.margin
+* Net.Profit.Margin 
+* Cash.and.cash.equivalents
+* Short.term.investments
+* Cash.and.short.term.investments
+* Receivables
+* Inventories
+* Total.current.assets
+* Property..Plant...Equipment.Net
+* Goodwill.and.Intangible.Assets
+* Class - Binary variable with 0 indicating a fall in stock price at the end of the year and 1 indicating a rise in price at the end of the year.
+
+For this analysis the response variable we will use is `class`. The explanatory variables come from the accounts of companies at the beginning of the year while the class indicates if the value of the of the stock has risen or fallen at the end of the year. The objective of this analysis is to predict if the stock price is going to rise or not by the end of the year using its characteristics at the end of the year.
+
+```{r Class var summary}
+summary(fin_dat$Class) # Summarize response variable
+```
+
+From this we see that we have 2,822 stocks which decreased or fell in value by the end of the year and 1,119 stocks which increased in value by the end of the year. 
+
+A simple model for this problem would be to just use the variables `Operating.Expenses`, `Operating.Income`, `R.D.Expenses`, and `Revenue.Growth` to try predict the `Class` variable.
+
+```{r simple fin model}
+fit_7 <- glm(Class ~ Operating.Expenses + Operating.Income + R.D.Expenses + Revenue.Growth ,family=binomial(link='logit'),data= fin_dat) # Fit simple logistic regression model
+summary(fit_7) # View simple logistic regression model
+
+```
+
+
+## Assignment Questions
+
+For the assignment please carry out the following tasks/answer the following questions (10 marks total):
+
+
+* 1 - Create at least two visualizations potentially revealing factors with predictive power (1 mark)
+
+
+```{r data visualization}
+
+plot_dat <- fin_dat # Create data to use as plot data
+
+plot_dat$Class <- as.factor(plot_dat$Class) # Convert response to factor for plotting
+
+g_1 <- ggplot(plot_dat, aes(x = log(R.D.Expenses), fill = Class)) + # Set x as log transform of R.D.Expenses and fill as Class
+  geom_density(alpha = 0.5) + # Select density plot and set transperancy (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Log Transform of R&D Expenses", title = "R&D Expenses - Stock Price Rise v Fall",
+       fill = "Stock Price") + # Set labels
+  scale_fill_manual(values = c("1" = "blue", "0" = "red"), # Set fill colors manually
+                    labels = c("1" = "Rise", "0" = "Fall")) # Set labels for fill
+g_1 # Generate plot
+
+g_2 <- ggplot(plot_dat, aes(x = log(Gross.Profit), fill = Class)) + # Set x as log transform of Gross.Profit and fill as Class
+  geom_density(alpha = 0.5) + # Select density plot and set transperancy (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Log Transform of Gross Profit", title = "Gross Profit - Stock Price Rise v Fall",
+       fill = "Stock Price") + # Set labels
+  scale_fill_manual(values = c("1" = "blue", "0" = "red"), # Set fill colors manually
+                    labels = c("1" = "Rise", "0" = "Fall")) # Set labels for fill
+g_2 # Generate plot
+
+
+```
+
+
+* 2 - Fit a logistic regression model to the data. (Remember you can use `resp ~.,` to include all explanatory variables in the model) (1 mark)
+
+```{r basic logistic regression}
+fin_logistic_fit_1 <- glm(Class ~ ., # Set formula
+                          family = binomial(link='logit'), # Set logistic regression
+                          data = fin_dat) # Set dataset
+
+summary(fin_logistic_fit_1) # Sumamrize model
+```
+
+
+
+* 3 - What features are significant in your logistic regression model? (1 mark)
+
+The following features are significant at at least 5.0% level:
+Intercept
+R.D. Expenses
+Weighted.Average.Shs.Out
+Weighted.Average.Shs.Out..Dil.
+Gross.Margin
+
+* 3 - What is the AIC of your logistic regression model? (1 mark)
+
+```{r initial model AIC measure}
+fin_logistic_fit_1$aic
+```
+
+
+* 4 - Add an interaction term to the logistic regression model? (1 mark)
+
+```{r logistic regression with interaction}
+
+fin_dat_1 <- fin_dat
+fin_dat_1$R.D._Gross <- fin_dat_1$R.D.Expenses * fin_dat_1$Gross.Margin
+
+
+fin_logistic_fit_2 <- glm(Class ~ . , # Set formula
+                          family = binomial(link='logit'), # Set logistic regression
+                          data = fin_dat_1) # Set dataset
+
+summary(fin_logistic_fit_2) # Sumamrize model
+```
+
+
+* 5 - Does the addition of the interaction term increase or decrease the AIC? What is the new AIC for the model? (1 mark)
+
+```{r comparing AIC values}
+fin_logistic_fit_2$aic > fin_logistic_fit_1$aic
+```
+
+The AIC increases with the inclusion of an interaction term between R.D.Expenses and Gross.Margin.  Therefore the increase in MLE does not offset the penalty from adding another variable to the model.
+
+```{r new model AIC measure}
+
+fin_logistic_fit_2$aic
+
+```
+
+
+* 6 - Fit a lasso logistic regression model to the data. (2 marks)
+
+I will assume this is being run on the initial data set (i.e. excludes the interaction term added above).
+
+```{r isolating data}
+
+fin_dat_2 <- as.data.frame(scale(fin_dat[,1:39])) # Scale dataset
+fin_dat_2$Class <- fin_dat$Class
+
+```
+
+Running initial lasso model without formally specifying a lambda value:
+
+```{r running lasso logistic regression}
+# Create x variables
+x_vars <- model.matrix(Class ~., 
+                       fin_dat_2)[,-1]
+# Fit lasso model
+lasso_fit_fin_dat <- glmnet(x = x_vars, # Set explantory variables
+                            y = fin_dat_2$Class, # Set response variable
+                            alpha = 1, # Set alpha value
+                            family = "binomial")
+
+coef(lasso_fit_fin_dat)
+```
+
+Identifying the best lambda to use in the lasso logistic regression:
+
+```{r selecting lambda for lasso}
+
+set.seed(123)
+# Set sequence of lambda values
+lambda_seq <- 10^seq(4, -4, by = -.1)
+# Fit cross-validated lasso model
+cv.lasso <- cv.glmnet(x = x_vars, # Set x variables
+                 y = fin_dat_2$Class, # Set response variables
+                 alpha = 1, # Set alpha = 1 for lasso
+                 family = "binomial", # Set family as binomial for logistic regression
+                 lambda = lambda_seq, # Set lambda values to try
+                 nfolds = 10)
+best_lam <- cv.lasso$lambda.min # Extract best lambda
+best_lam  # Print best lambda
+```
+
+Using the above lambda to re-run the lasso logistic regression:
+
+```{r updated lasso with selected lambda}
+lasso_fit_fin_dat_2 <- glmnet(x = x_vars, # Set explantory variables
+                                    y = fin_dat_2$Class, # Set response variable
+                                    alpha = 1, # Set alpha as 1 for lasso
+                                    family = "binomial", # Set as logistic regression
+                                    lambda = best_lam) # Set lambda as best lambda
+
+coef(lasso_fit_fin_dat_2)
+```
+
+
+* 7 - Which coefficients were non-zero in the lasso model? Were they positive or negative? What does this imply? (1 mark)
+
+**Coefficients that are non-zero, sign, and implication:**
+
+Intercept, negative, model begins with a less likely outcome that the stock will shows a rise in price for the year
+
+R.D.Expenses, positive, the positive sign indicates that as R.D. expenses rise there is more likelihood the stock price will rise over the year
+
+Preferred.Dividends, negative, the negative sign indicates that as Preferred Dividends grow there is less likelihood the stock price will rise over the year
+
+Gross.Margin, positive, the positive sign indicates that as the Gross Margin increases there is more likelihood that the stock price will rise over the year
+
+Cash.and.short.term.investments, negative, the negative sign indicates that as cash and short term investments increase there is a lower likelihood that the stock price will rise over the year
+
+Receivables, negative, the negative sign indicates that as receivables increase there is less likelihood that the stock price will rise over the year
+
+Total.current.assets, negative, the negative sign indicates that as total current assets grows there is less likelihood that the stock price will rise over the year
+
+
+
+2 marks for modelling decisions, analysis choices and quality of code.
