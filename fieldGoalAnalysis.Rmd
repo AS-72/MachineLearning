@@ -1,0 +1,1398 @@
+---
+title: "NFL Field Goal Analysis"
+author: "Anthony Stachowski"
+date: "9/14/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Introduction
+
+**Motivation:**
+
+I have been interested in American football for many years and had the opportunity to play this sport and also to coach it. There are many interesting aspects of the game and lots of different strategies are employed to try and gain an upper hand within the game. 
+
+The game is built around two teams competing to score points by advancing the football in a field of play. There are five common ways to score points in a game: touchdown (6 points), extra point (1 point; attempted by kicking a field goal after the scoring of a touchdown), 2-point conversion (2 points; attempted after a touchdown is scored instead of an extra point kick) field goal (3 points), and safety (2 points; when the defense forces the offense beyond their own goal line). 
+
+The game is considered to be quite complex to those who are not familiar with it due to an extensive amount of rules and oddities. There are also 22 players on the field at all times, which can make analysis of the sport from a data perspective very difficult. In an effort to reduce some of this complexity, I will focus on one particular aspect of the game that can play an extremely critical role in its outcome: field goals. This is one of the situations in the game where the focus is pretty much placed on one player, the field goal kicker. A field goal made (3 points) can propel a team to victory and on a number of occasions the game may come down to a last second attempt to secure the victory. In these moments the kicker can have an extreme amount of pressure on them to kick the football through field goal posts that are shaped like a squared "U" that sit above the end-lines of the field. Not only does the kicker have to deal with the pressure of this, but likely has to deal with other field conditions that can be critical at to whether the field goal will be good or not. Some of these field conditions include: field surface, distance of the kick, wind, temperature, and the type of stadium (e.g. open-air, dome, retractable roof).
+
+While the kicker faces immense pressure, the head coach must also decide whether to attempt a field goal in a given situation. As noted above, there is much to consider and coaches are quick to be criticized based on their choices. Because of the importance of field goals, they have been studied quite a bit in hopes to identify what are some of the key factors a coach should be aware of when deciding whether or not to have their kicker trot out onto the field. I am hoping to build a model based on NFL field goal data to help coaches better understand some of the key factors and outline a decision matrix that may help increase their chances of a successful field goal attempt.
+
+**Problem-Framing:**
+
+The key problem is identifying the nature of an in-game situation in order to be able to better identify when a field goal attempt should be made due to it having a grater probability of being good. I will focus on the context of an NFL game as this is the highest ranking league within the sport of American football. 
+
+My goal will be to try and identify some of the most critical variables that contribute to whether or not a field goal will be made. Identifying these variables and then determining how they influence the likelihood of a field goal kick being successful can help coaches make better decisions in order to give their team the best chance to win.
+
+Therefore, in order to increase the likelihood of a field goal kick being made, I hope to produce a model that identifies the key variables from an available data set of NFL field goal kicks. The proposed solution should help coaches make better decisions around attempting field goals. The model will require a balance between simplicity and accuracy as coaches will not be able to assess every available variable in the context of a game situation. Further, not every variable that plays a role in a successful attempt of a field goal is collected and therefore any model proposed will still retain a level of error. The key will be trying to reduce this level of error and produce a model that can easily be applied.
+
+I will be trying to frame a model that helps coaches increase the likelihood that a field goal attempt will be good. A field goal that is made awards 3 points to the team who made it and helps them in their effort to score more points than the opposing team by the end of the game. My initial thought is that decisions trees used within ensemble models can help in identifying a model that might work best for coaches given the variable information that is available on the data set. The model will fail if none of the variables collected in the data set play a key role in a field goal attempt being good.
+
+
+## Data Set Information
+
+The original data set has about 14,000 observations of field goal (FG) attempts in the NFL regular seasons and playoffs from 2000-2013.  These field goal attempts exclude extra point (XP) data.  Extra point kicks are attempted after scoring a touchdown and result in 1 point if made. 
+
+If the field goal is made, the team attempting the kick is awarded 3 points.  If the field goal is missed or blocked, possession of the football goes to the other team if they do not somehow score on the play.  In the case of a miss or a block, the team that attempted the field goal is not awarded any points.
+
+The data set stops at 2014. This is because in 2014 the height of the field goal arms was extended by 5 feet, thus a ball that previously traveled over the field goal post (arm of the squared-"U") would have been good, could now strike the arm and be no good. By focusing on 2000-2013, I am able to have a consistent data set where the field goal posts were of the same design.
+
+The following variables are present in the original data set:\
+
+#### Game Info\
+
+**gid** - Game ID\
+**pid** - Play ID\
+**season** - Season Year\
+**week** - Numeric identifier of which week during the season the game was played; regular season consists of weeks 1-17 and playoffs consist of weeks 18-21\
+**day** - Day of week Sunday-Saturday\
+**v** - team abbreviation that was the visiting team for the game\
+**h** - team abbreviation that was the home team for the game\
+**stad** - stadium name where the game was played\
+**temp** - temperature in Fahrenheit for the game\
+**humidity** - percentage of humidity\
+**wspd** - wind speed in MPH\
+**wdir** - wind direction\
+**cond** - categorical descriptor of weather if applicable\
+**surf** - description of the field surface\
+**ou** - over-under for the game\
+**sprv** - point spread for the game\
+
+#### Prior to the FG Attempt\
+
+**off** - team abbreviation for which was on offense\
+**def** - team abbreviation for which was on defense\
+**dseq** - drive sequence; the number of the play in the drive sequence\
+**len** - play length in seconds\
+**qtr** - quarter within the game; numbers greater than 4 indicate overtime period\
+**min** - minute within the quarter or overtime period\
+**sec** - seconds; when joined with minute, will give time on clock\
+**ptso** - score for offense\
+**ptsd** - score for defense\
+**timo** timeouts remaining for offense\
+**timd** - timeouts remaining for defense\
+**dwn** - down for the play (1-4)\
+**ytg** - yards to go to for first down\
+**yfog** - yards from own goal line\
+**pts** - points scored on the FG attempt (negative value indicates the other team scored on the play)\
+
+#### Blocked\
+
+**blk** - player ID who blocked kick\
+**brcv** - player ID of recovery of blocked kick\
+
+#### FG Try\
+
+**fgxp** - identifier of FG or XP; only includes FG data\
+**fkicker** - player ID of FG kicker\
+**dist** - distance in yards of FG attempt\
+**good** - indicator as to whether the FG attempt is good (Y/N)\
+
+#### Final Score Information\
+
+**ptsv** - final points for the visitor team\
+**ptsh** - final points for the home team\
+
+#### Icing the Kicker\
+
+**iced** - binary variable where 1 indicates the team on defense called a timeout before the FG attempt\
+
+#### Detail\
+
+**detail** - description of the play\
+
+#### Added Fields\
+
+**surface** - Indicates field surface as field or turf, this was assessed using information from Wikipedia on the surface type for each field during each season (https://en.wikipedia.org/wiki/Chronology_of_home_stadiums_for_current_National_Football_League_teams).\
+**elapsedtime** - this field is calculated using the quarter and time information referenced above. Each NFL quarter is 15 minutes with the overtime periods being treated different. There are 4 quarters in a game. This field gives a decimal version of the elapsed minutes that have been played. Any games that go into overtime will show an elapsed time of 60 minutes, this was done for simplicity.\
+
+The initial data set is reduced by removing the FG attempts by kickers who have had less than 50 attempts during the 14 seasons. This removes kickers who were not in the NFL for an extended period of time or who's career was shortened by injury or very poor performance. This does create some bias in the model, but also removes kickers who NFL staff would regard as outliers based on NFL expectations. This reduces the initial data set down to about 13,300 observations of FG kicks.
+
+Some initial cleaning was also performed by removing values that were coded to indicate that they were missing with a character string. The reason behind why this was done is not known, but these character strings have been removed and the variable observation is left blank to indicate that the value was missing or not known. Some other values were coded in the same manner to keep uppercase and lowercase characters stable. Also, the condition category was adjusted so that retractable and closed roof stadiums were listed as being domes for simplification.
+
+
+## Import Field Goal Data Set
+
+The following code brings in the reduced data set (around 13,300 records) from my GitHub site:
+```{r import data, message=FALSE}
+library(readr)
+library(dplyr)
+
+url = "https://raw.githubusercontent.com/AS-72/Sports-Analytics/master/fieldGoalDataNFL.csv"
+
+fgData = read_csv(url)
+
+glimpse(fgData)
+
+```
+
+This data set has 44 variables (42 original variables) and 13,353 observations. The key variable we will be considering from a response standpoint is the variable **good**. Let's take a look at it in a little more detail to determine the nature of individual variables and whether more cleaning needs to occur before proposing possible models.
+
+```{r data summarizing}
+
+summary(fgData)
+
+```
+
+This shows that a number of variables have missing data (e.g. **wspd** has 3,604 NAs) and also that the import requires some variables to be adjusted to better count for possible values (e.g. iced is a binary variable with possible values of 0 and 1).
+
+So now, using the summary information and my variable information, I will transform some variables so that they are in easier to use formats:
+```{r variable adjustment}
+
+fgDataAdj = fgData # Making copy of data set and will perform changes on this Adjusted set
+
+# Turn season into a categorical variable:
+fgDataAdj$seas = as.factor(fgDataAdj$seas)
+
+# Turn week into a categorical variable:
+fgDataAdj$week = as.factor(fgDataAdj$week)
+
+# Turn day into a categorical variable:
+fgDataAdj$day = as.factor(fgDataAdj$day)
+
+# Turn visiting team into a categorical variable:
+fgDataAdj$v = as.factor(fgDataAdj$v)
+
+# Turn home team into a categorical variable:
+fgDataAdj$h = as.factor(fgDataAdj$h)
+
+# Turn stadium into a categorical variable:
+fgDataAdj$stad = as.factor(fgDataAdj$stad)
+
+# Turn wind direction into a categorical variable:
+fgDataAdj$wdir = as.factor(fgDataAdj$wdir)
+
+# Turn condition into a categorical variable:
+fgDataAdj$cond = as.factor(fgDataAdj$cond)
+
+# Turn offense into a categorical variable:
+fgDataAdj$off = as.factor(fgDataAdj$off)
+
+# Turn defense into a categorical variable:
+fgDataAdj$def = as.factor(fgDataAdj$def)
+
+# Turn quarter into a categorical variable:
+fgDataAdj$qtr = as.factor(fgDataAdj$qtr)
+
+# Turn time outs for offense into a categorical variable:
+fgDataAdj$timo = as.factor(fgDataAdj$timo)
+
+# Turn time outs for defense into a categorical variable:
+fgDataAdj$timd = as.factor(fgDataAdj$timd)
+
+# Turn down into a categorical variable:
+fgDataAdj$dwn = as.factor(fgDataAdj$dwn)
+
+# Turn player who blocked FG into a categorical variable:
+fgDataAdj$blk = as.factor(fgDataAdj$blk)
+
+# Turn FG or XP into a categorical variable (only FG should be present):
+fgDataAdj$fgxp = as.factor(fgDataAdj$fgxp)
+
+# Turn FG kicker into a categorical variable:
+fgDataAdj$fkicker = as.factor(fgDataAdj$fkicker)
+
+# Turn whether the field goal was good into a categorical variable:
+fgDataAdj$good = as.factor(fgDataAdj$good)
+
+# Turn whether the FG kicker was iced into a categorical variable:
+fgDataAdj$iced = as.factor(fgDataAdj$iced)
+
+# Turn surface into a categorical variable:
+fgDataAdj$surface = as.factor(fgDataAdj$surface)
+
+summary(fgDataAdj)
+
+```
+
+We now have some better information about our variables that are in categorical form.  For example, we can see that there are 32 possible teams (**v**, **h**), which makes sense as there have been 32 teams in the NFL for a good portion of this period (in 2002 there were 32 teams and this has been the total since then). Also, there seem to be some issues present with some of the data within individual variables. For example, **wdir** has some values that do not seem to make sense. Therefore, we may need to adjust some variables to account for possible missing information. Looking at some variables in greater detail:
+```{r factor variable analysis}
+count(fgDataAdj, seas)
+
+count(fgDataAdj, wdir)
+
+count(fgDataAdj, cond)
+
+```
+
+We may need to impute information for some of these variables, while others might be left out of the model due to them either not being theoretically useful for predicting whether a field goal is good (e.g. **pid** the play ID should not be predictive of the outcome) or the variable may not be dependable or convey enough information (e.g. **widr** could be useful, but we would need to know the direction the kicker is kicking OR **cond** could be useful, but we do not know if they were collected at the moment of the kick and whether it is possible more than one was in effect during the kick). There are therefore some difficulties present in our data where information is not available or adjustments may need to be made to make sure the model runs optimally.
+
+Before I move into visualizing some of the data, I want to create three additional variables that may be useful:
+```{r altering blk variable}
+# Creating a binary variable for whether the FG kick was blocked:
+
+fgDataAdj$block = factor(if_else(is.na(fgDataAdj$blk)==FALSE,1,0))
+
+```
+
+The team on offense will be attempting the FG and therefore this variable will account for the point spread from the offense's perspective (i.e. a negative point spread would indicate the team that is kicking is behind in the game).
+```{r creating point spread}
+# Creating a variable for the actual point spread at the time of the kick:
+
+pointSpread = fgDataAdj %>%
+  select(ptso, ptsd) %>%
+  mutate(ptsspd = ptso - ptsd)
+
+fgDataAdj$ptsspd = pointSpread$ptsspd
+
+```
+
+The last variable will be a percentage of kicks made by each kicker in the data set. This accuracy measure will only be built based on the data set and therefore will not be a perfect representation of their career accuracy. Further, this accuracy measure will not take into account any details in regards to distance or other factors. Ideally, this variable would be built by assessing accuracy levels at different ranges, but for simplicity it will just be a total accuracy measure. This accuracy variable may be useful in assessing a model where the kicker variable is removed due to a number of levels for this variable:
+```{r creating kicker accuracy}
+
+fgDataAdj = fgDataAdj %>%
+  group_by(fkicker) %>%
+  mutate(accuracy = as.numeric(length(which(good == "Y")) / n())) %>% # divides the number of made FGs by the number of FGs attempted
+  ungroup()
+
+summary(fgDataAdj$accuracy)
+
+```
+
+
+Alright, so now let's jump into some data visualizations to begin getting an understanding of what might be influencing our response variable **good**:
+```{r data visualization}
+library(ggplot2)
+
+g_1 <- ggplot(fgDataAdj, aes(x = dist, fill = good)) + # Set x as distance of the kick and fill as good
+  geom_density(alpha = 0.5) + # Select density plot and set transparency (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Kick Distance (yds)", title = "Field Goal Distance Impact on FGs",
+       fill = "Field Goal") + # Set labels
+  scale_fill_manual(values = c("Y" = "blue", "N" = "red"), # Set fill colors manually
+                    labels = c("Y" = "Good", "N" = "No Good")) # Set labels for fill
+g_1 # Generate plot
+
+g_2 <- ggplot(fgDataAdj, aes(x = temp, fill = good)) + # Set x as temperature and fill as good
+  geom_density(alpha = 0.5) + # Select density plot and set transparency (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Temperature (Degrees Fahrenheit)", title = "Game Temperature's Impact on FGs",
+       fill = "Field Goal") + # Set labels
+  scale_fill_manual(values = c("Y" = "blue", "N" = "red"), # Set fill colors manually
+                    labels = c("Y" = "Good", "N" = "No Good")) # Set labels for fill
+g_2 # Generate plot
+
+g_3 <- ggplot(fgDataAdj, aes(x = wspd, fill = good)) + # Set x as wind speed and fill as good
+  geom_density(alpha = 0.5) + # Select density plot and set transparency (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Wind Speed (MPH)", title = "Wind Speed's Impact on FGs",
+       fill = "Field Goal") + # Set labels
+  scale_fill_manual(values = c("Y" = "blue", "N" = "red"), # Set fill colors manually
+                    labels = c("Y" = "Good", "N" = "No Good")) # Set labels for fill
+g_3 # Generate plot
+
+g_4 <- ggplot(fgDataAdj, aes(x = elapsedtime, fill = good)) + # Set x as elapsed time and fill as good
+  geom_density(alpha = 0.5) + # Select density plot and set transparency (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Elapsed Time (Minutes)", title = "Elapsed Game Time's Impact on FGs",
+       fill = "Field Goal") + # Set labels
+  scale_fill_manual(values = c("Y" = "blue", "N" = "red"), # Set fill colors manually
+                    labels = c("Y" = "Good", "N" = "No Good")) # Set labels for fill
+g_4 # Generate plot
+
+g_5 <- ggplot(fgDataAdj, aes(x = ptsspd, fill = good)) + # Set x as in-game point spread and fill as good
+  geom_density(alpha = 0.5) + # Select density plot and set transparency (alpha)
+    theme_set(theme_bw(base_size = 22) ) + # Set theme and text size
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "In-Game Point Spread", title = "In-Game Point Spread's Impact on FGs",
+       fill = "Field Goal") + # Set labels
+  scale_fill_manual(values = c("Y" = "blue", "N" = "red"), # Set fill colors manually
+                    labels = c("Y" = "Good", "N" = "No Good")) # Set labels for fill
+g_5 # Generate plot
+
+```
+
+Based on these visualizations, it looks like some variables do play a role in whether a FG is good. Distance looks like it may be one of the most important variables given the separation between the "Good" and "No Good" categories. This is logical because as the distance increases for the kicker there are more variables that can impact the football's trajectory. The stress level may also increase for kickers as the distance grows.
+
+There does look like there is some difference by temperature, wind speed, elapsed time (interestingly it looks like kickers get better as the game goes on, but this might be because a coach is more likely to ride a hot foot and not give a kicker another chance if they missed a kick early), and in-game point spread.
+
+These visualizations do not account for every variable, but provide a good indication that variables in the data set will be helpful in developing a decision matrix for coaches trying to decide whether to attempt a FG.
+
+## Previous Work on Topic
+
+As I was mentioning above, there has been some interesting studies that have been conducted around FG attempts. One of the key research efforts was around a presentation that was delivered at the MIT Sloan Sports Analytics Conference in 2013. Torin K. Clark, Aaron W. Johnson, and Alexander J. Stimpson conducted research on NFL field goal kicks from the 2000 to 2011 seasons to try and determine what some of the key factors were in whether a FG was good. They used a binary logistic regression and considered a number of possible variables.
+
+There were four key goals for their research:\
+1) Determine the factors that play an important role in field goals being successful.\
+2) Build a logistic regression model to assess field goal attempts in order to determine which are most difficult.\
+3) Use the model to evaluate field goals through the lens of seasons, stadiums, and kickers.\
+4) Build a predictive classification model for determining whether a field goal attempt will be good.\
+
+Based on the variables that they had available, they determined that the following variables played the most critical role in the field goal outcome: distance, temperature (below 50 degrees Fahrenheit), field surface (e.g. turf), altitude, precipitation, and wind. They found that icing the kicker (calling a timeout before the kicker attempted the FG) had little effect on the outcome of the FG. (Clark et al., 2013) Their additional work around individual kickers and stadiums also presents some good considerations, but is in a slightly different direction than the current analysis.
+
+Additional research has been conducted on FGs by a host of other people. Sean Clement conducted a very similar analysis to the one outlined above that was completed by Clark et al. (Clement, 2017) Claus Herther analyzed information in regards to kicking angles (horizontal and vertical angles) based on calculations he developed off of field information available in NFL advanced stats. He developed a geometric model for analyzing kicks borrowing a model that was initially developed for studying golf. Applying Bayesian methods, he found that a logistic model that accounted for geometry, distance, and their interaction actually performed best in predicting the outcome of a FG. (Herther, 2020) However, this model does not account for other environmental factors that may be affecting the kick's outcome.
+
+Justis Mosqueda also did some work around analyzing kickers around expected points added. While Justis did not focus on determining what led to a field goal being good or no good, he did incorporate certain variables for evaluating kickers by partitioning FG attempts into buckets based on distance. Justis was writing for Optimum Scouting where the focus is on evaluating players and therefore the approach taken was a little different than what will be used here (Mosqueda, 2018).
+
+## Model
+
+#### Final Cleaning and Variable Imputing
+
+Before designing a model to examine what some of the critical values are for making field goals, I am going to conduct some additional cleaning and data imputing to reduce possible issues around missing values. It is unlikely that all missing values will be able to be imputed as some of the variables are more subjective in nature, but any reduction in missing fields will help the model reach better convergence.
+
+The key variables where there are missing data are: temperature (1,933 missing), humidity (3,700), wind speed (3,604), wind direction (3,586), condition (335), and points (2,372). I will examine each of these in turn to determine whether values may be imputed or chosen to reduce the number of missing values.
+
+Let's first look at temperature data and see if there may be a logical value to include for the missing values:
+
+```{r Analyzing TEMP Variable Round 1}
+# Isolate observations where temperature is missing:
+tempAnalysis = fgDataAdj %>%
+  filter(is.na(temp))
+
+count(tempAnalysis, cond)
+
+```
+
+Of our 1,933 missing temperature values, 1,871 are from domes. The temperature values for these observations can be replaced with the average dome stadium temperature, which is around 70 degrees Fahrenheit (https://pursuitofperfection10.wordpress.com/2010/03/09/competitive-climates-in-the-nfl/)
+
+The remaining 62 observations would be more difficult to assess the temperature without a great deal of additional analysis. This analysis could be possible by looking at the stadium, game week, season, and historical weather data. However, for simplicity, I will use the average temperature from the non-missing observations that are not in Dome stadiums:
+
+```{r Analyzing TEMP Variable Round 2}
+avgTemp = fgDataAdj %>%
+  filter(cond != "Dome" & !is.na(temp))
+
+mean(avgTemp$temp)
+
+```
+
+I will use this mean value of 57.69 degrees Fahrenheit for the 62 observations where there was missing data and the condition was not dome. Our new adjusted data set:
+
+```{r Cleaning TEMP Variable}
+fgDataModel = fgDataAdj %>%
+  mutate(temp = ifelse(is.na(temp) & cond == "Dome", 70, temp)) %>%
+  mutate(temp = ifelse(is.na(temp), 57.69, temp))
+
+summary(fgDataModel$temp)
+```
+
+Now let's look at our humidity variable:
+
+```{r Analyszing HUMD Variable}
+# Isolate observations where humidity is missing:
+humdAnalysis = fgDataModel %>%
+  filter(is.na(humd))
+
+count(humdAnalysis, cond)
+```
+
+Of our 3,700 missing temperature values, 3,095 are from domes. While this might present an ideal situation for imputing, indoor humidity is heavily dependent on outdoor humidity and this varies considerably between cities. This makes choosing one value for humidity based on it being a dome more difficult. Therefore for simplicity I will fill the missing values with the mean humidity level using the observations where it is present:
+
+```{r Cleaning HUMD Variable}
+summary(fgDataAdj$humd)
+
+# Replace missing humidity measures with average humidity from observations where it was included:
+fgDataModel = fgDataModel %>%
+  mutate(humd = ifelse(is.na(humd), 58.58, humd))
+
+summary(fgDataModel$humd)
+
+```
+
+Moving to wind speed:
+
+```{r Analyzing WSPD Variable}
+
+# Isolate observations where wind speed is missing:
+wspdAnalysis = fgDataModel %>%
+  filter(is.na(wspd))
+
+count(wspdAnalysis, cond)
+
+```
+
+Of our 3,604 missing wind speed values, 3,095 are from domes. For these I will use a wind speed of 0 and for the remaining 509 values I will use the average wind speed from the observations where there were no missing values:
+
+```{r Cleaning WSPD Variable}
+summary(fgDataAdj$wspd)
+
+fgDataModel = fgDataModel %>%
+  mutate(wspd = ifelse(is.na(wspd) & cond == "Dome", 0, wspd)) %>%
+  mutate(wspd = ifelse(is.na(wspd), 9.345, wspd))
+
+summary(fgDataModel$wspd)
+
+```
+
+For wind direction:
+
+```{r Analyzing WDIR Variable}
+
+# Isolate observations where wind direction is missing:
+wdirAnalysis = fgDataModel %>%
+  filter(is.na(wdir))
+
+count(wdirAnalysis, cond)
+
+
+```
+
+Of our 3,586 missing temperature values, 3,095 are from domes. For these we can impute a value of CALM as the wind speed was selected to be 0. For the remaining 491 missing values, I will code MISSING. In reality this variable's usefulness should be heavily muted as we do not know if the kicker is kicking with or against the wind and therefore the direction only provides minor information.
+
+```{r Cleaning WDIR Variable}
+
+fgDataModel = fgDataModel %>%
+  mutate(wdir = ifelse(is.na(wdir) & cond == "Dome", as.character("CALM"), as.character(wdir))) %>%
+  mutate(wdir = ifelse(is.na(wdir), as.character("MISSING"), as.character(wdir)))
+
+fgDataModel$wdir = as.factor(fgDataModel$wdir)
+summary(fgDataModel$wdir)
+```
+
+Now moving to condition:
+
+```{r Analyzing COND Variable}
+
+# Isolate observations where condition is missing:
+condAnalysis = fgDataModel %>%
+  filter(is.na(cond))
+
+count(condAnalysis, stad)
+
+```
+
+Most of the cases where there is a missing condition are in open-air stadiums and therefore there is no easy way to impute the value. For simplicity, I will fill in a code of MISSING for this variable.
+
+```{r Cleaning COND Variable}
+
+fgDataModel = fgDataModel %>%
+  mutate(cond = ifelse(is.na(cond), as.character("MISSING"), as.character(cond)))
+
+fgDataModel$cond = as.factor(fgDataModel$cond)
+summary(fgDataModel$cond)
+
+```
+
+Finally, I will examine the points variable as some things will need to be adjusted here:
+
+```{r Analyzing PTS Variable}
+
+# Isolate observations where condition is missing:
+ptsAnalysis = fgDataModel %>%
+  filter(is.na(pts))
+
+count(ptsAnalysis, good)
+
+# Let's look at the 2 cases where the FG is good, but no points were recorded:
+
+oddPtsAnalysis = ptsAnalysis %>%
+  filter(good == "Y")
+
+oddPtsAnalysis$detail
+
+```
+
+Alright, the cases where there was no points recorded but the FG was good were cases where a penalty nullified the kick and therefore the points are actually 0. I will therefore code a 0 value for these FGs, but leave them as being good. For the remaining 2,370 cases where points were missing, the FG was no good so these can also be coded as 0 points. I will also clean this field up to have negative points of -6 and -8 coded as -7. These are cases where a FG was blocked and returned for a touchdown by the defense. The -6 and -8 reflect information about the extra point or two-point conversion attempt.
+
+```{r Cleaning PTS Variable}
+
+fgDataModel = fgDataModel %>%
+  mutate(pts = ifelse(is.na(pts), 0, pts)) %>%
+  mutate(pts = ifelse(pts == -6 | pts == -8, -7, pts))
+
+fgDataModel$pts = as.factor(fgDataModel$pts)
+summary(fgDataModel$pts)
+
+summary(fgDataModel)
+
+```
+
+### Final Data File
+
+Now that we have removed all of the key missing values, a few last adjustments need to be made before building the model. I will turn the response variable "good" into a binary variable and will remove variables that duplicate information, are completely superfluous to the model, or are perfectly correlated with the response variable (e.g. pts):
+
+```{r Assembling Final Data File}
+
+# Set the good variable as binary, factor variable:
+levels(fgDataModel$good) = c(0, 1)
+
+# Select only relevant variables:
+# Remove surf as surface variable accounts for this in a more tailored way
+# Remove qtr, min, and sec as variable elapsedtime accounts for this
+# Remove blk and brcv as block accounts for a FG being blocked and player and recovering player are not relevant to model
+# Remove fgxp as data set only contains FG information
+# Remove detail information as text data field to describe play and while it includes relevant information, this is captured in other fields
+# Remove kicker factor variable as accuracy variable should account for this and reduce the levels within the model
+# Remove points as this variable captures the outcome of the play, it will perfectly identify the response variable (revision 1)
+# Remove blocks as this would mean the FG would not be made and this is not known before the play occurs (revision 1)
+# Remove yards-from-own-goaline as the distance of the kick will already catpture the details present in this variable (revision 2)
+# Remove both final points measures (ptsh and ptsv) as these would not be known at the time of the FG attempt (revision 3)
+# Remove Game and Play IDs (gid and pid) as information about season, week, and time within the game should capture this (revision 3)
+# Remove play length as this is not known before the play starts and is also likely correlated with the distance of the kick (revision 4)
+fgDataFinal = fgDataModel %>%
+  select(-surf, -qtr, -min, -sec, -blk, -brcv, -fgxp, -fkicker, -detail, 
+         -pts, -block, -yfog, -ptsh, -ptsv, -gid, -pid, -len)
+
+```
+
+We have our final data set and the last step before running the model which will use random forests is to create dummy variables for all of the factor variables in the data set:
+
+```{r Dummy Variable Creation}
+
+library(mlr)
+
+# Creates dummy variables for each of the categorical variables included in the model:
+fgDataFinal1 = createDummyFeatures(fgDataFinal,
+                                   cols = c("seas", "week", "day", "v", "h",  "stad", "wdir", "cond", "off",  
+                                            "def", "timo", "timd", "dwn", "iced", "surface"),
+                                   method = "1-of-n")
+```
+
+As I am trying to figure out which variables play a critical role in successful FG attempts, I will want to build a model on a training set and then evaluate its performance on a test set. As my data is imbalanced (10,956 made FGs and 2,397 missed FGs), I need to make sure this is accounted for when building my training and testing data set as the goal of the model is to best identify when attempts will be made on a new data set. While I would generally expect NFL kickers to have a greater accuracy, then kickers at lower levels, there are few kicks in the NFL that are guarantees and a model should try to best account for variability that may provide a better indication as to whether an attempt will be good. I will use an 80/20 split between training and testing data.
+
+```{r Test & Train Sets}
+library(caret)
+
+set.seed(1234589) # To aid in reproducing results
+
+trainIndex = createDataPartition(fgDataFinal1$good, p = .8, list = FALSE)
+fgTrain = fgDataFinal1[ trainIndex,]
+fgTest = fgDataFinal1[-trainIndex,]
+
+```
+
+Now that the data has been divided into a training and testing set, I can now turn to building an initial model to help in identifying the critical variables in identifying when FG attempts are likely to be good. In order to do this I will use an XGBoost model with a weighting vector to account for the imbalanced data within my final data set. The following puts the training and testing set into a matrix format (required for XGBoost) and builds out the weighting vector that will be used in the model:
+
+```{r XG Matrices and Weight Vector}
+library(xgboost)
+library(OptimalCutpoints)
+library(pROC)
+library(e1071)
+
+# Create training matrix
+dtrain = xgb.DMatrix(data = as.matrix(select(fgTrain, -good)), label = as.numeric(fgTrain$good) - 1)
+# Create test matrix
+dtest = xgb.DMatrix(data = as.matrix(select(fgTest, -good)), label = as.numeric(fgTest$good) - 1)
+
+zero_weight = length(which(fgTrain$good == 1))/length(which(fgTrain$good == 0)) # Calculate proportion of positive samples in data
+weight_vec = rep(1, nrow(fgTrain)) # Create weight vector
+weight_vec[which(fgTrain$good == 0)] = zero_weight # Assign weight for negative samples
+sum(weight_vec[which(fgTrain$good == 1)]) # Check 1 class weight
+sum(weight_vec[which(fgTrain$good == 0)]) # Check 0 class weight
+
+```
+
+### Input into XGBoost Model
+
+I have decided to use an XGBoost model for the following reasons:
+
+* It can handle imbalanced data more easily than a simple logistic regression
+* As it is an ensemble model where gradient boosted decision trees are computed en masse, it offers a model that can handle many variables and still supply predictive power
+* It is setup to reduce the possibility of overfitting
+* Helps with identifying critical variables within situations or events
+
+These four reasons are very useful when assessing whether FG attempts will be successful. Using this training set with the weight vector, I will feed this into the XGBoost Model:
+
+```{r Base XGBoost}
+
+set.seed(111111)
+baseModel = xgboost(data = dtrain, # Set training data
+
+              nrounds = 100, # Set number of rounds
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+```
+
+From this base model, I will build an initial set of predictions using the cutoff value for the prediction based on the optimal.cutpoints function instead of choosing an arbitrary number to test the accuracy of the initial model.
+
+```{r XGBoost Base Prediction}
+
+basePreds = predict(baseModel, dtrain) # Create predictions for xgboost model
+
+predsData = cbind.data.frame(basePreds , fgTrain$good)
+names(predsData) <- c("predictions", "response")
+oc = optimal.cutpoints(X = "predictions",
+                       status = "response",
+                       tag.healthy = 0,
+                       data = predsData,
+                       methods = "MaxEfficiency")
+
+basePreds1 = predict(baseModel, dtest) # Create predictions for xgboost model
+
+predsData = cbind.data.frame(basePreds1 , fgTest$good) 
+
+# Convert predictions to classes, using optimal cut-off
+basePredsGood = rep(0, length(basePreds1))
+basePredsGood[basePreds1 >= oc$MaxEfficiency$Global$optimal.cutoff$cutoff[1]] = 1
+
+u <- union(basePredsGood,  fgTest$good) # Join factor levels
+t <- table(factor(basePredsGood, u), factor(fgTest$good, u)) # Create table
+confusionMatrix(t) # Produce confusion matrix
+
+```
+
+From this initial model we have an accuracy of 0.7764, a positive predictive value of 0.8468 and a negative predictive value of 0.3414. This is pretty good performance, but we may be able to generate some improvements by tuning our model.
+
+### Tuning Model Parameters
+
+There are several parameters which we can tune for XGBoost:
+
+* max.depth -  this is the parameter that limits how deep the tree can get
+* nrounds - maximum number of boosting rounds completed
+* eta - the learning rate control for the tree; lower values require more rounds but are more robust to overfitting
+* gamma - minimum loss reduction required for a further partition of a node to be made
+* min_child_weight - the minimum sum of instance weight (Hessian) needed in a child (partition of a node)
+* subsample - the ratio of training instance
+* colsample_bytree - subsample ratio of columns when constructing each tree
+* early_stopping_rounds - specifies the number of rounds to stop the model after no improvement; selecting this aids in reducing the possibility of overfitting the model
+
+For XGBoost I will use the following parameter tuning approach:
+
+* Choose an eta value of 0.1 (learning rate, which generally varies from 0.01 to 0.3) and determine the optimal number of trees for this learning rate. 
+* Tune tree specific parameters such as max.depth, min_child_weight, gamma, subsample, colsample_bytree for decided learning rate and number of trees.
+* Lower the learning rate and decide optimal number of trees.
+
+In tuning most of the parameters of the model, I will focus on examining error rates and AUC information to determine the level for each of these parameters. Ideally, I will want to select parameter levels that minimize error rates and maximize AUC levels during the tuning process.
+
+I will first run the algorithm with a high number of trees and a learning rate of 0.1 to determine an appropriate number of trees to use. 
+
+```{r Parameter Tuning 1}
+
+# Use xgb.cv to run cross-validation inside xgboost
+set.seed(111111)
+bst = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+bst$best_ntreelimit
+```
+
+From this week can see that the optimal number of iterations occurred at 33. I will set the number of rounds to 150 and include an early stopping parameter of 40 for the next round of tuning. The next parameters I will examine are max.depth and min_child_weight as these will likely have the largest effect on the model outcome.
+
+```{r Parameter Tuning 2}
+
+max_depth_vals = c(3, 5, 7, 10, 15) # Create vector of max depth values
+min_child_weight = c(1, 3, 5, 7, 10, 15) # Create vector of min child values
+
+# Expand grid of parameter values
+cv_params = expand.grid(max_depth_vals, min_child_weight)
+names(cv_params) = c("max_depth", "min_child_weight")
+
+# Create results vector
+auc_vec = error_vec = rep(NA, nrow(cv_params)) 
+
+# Loop through results
+for(i in 1:nrow(cv_params)){
+  set.seed(111111)
+  bst_tune = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              max.depth = cv_params$max_depth[i], # Set max depth
+              min_child_weight = cv_params$min_child_weight[i], # Set minimum number of samples in node to split
+             
+              nrounds = 150, # Set number of rounds
+              early_stopping_rounds = 40, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+               
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc", # Set evaluation metric to use
+              eval_metric = "error") # Set evaluation metric to use
+  
+  auc_vec[i] = bst_tune$evaluation_log$test_auc_mean[bst_tune$best_ntreelimit]
+  error_vec[i] = bst_tune$evaluation_log$test_error_mean[bst_tune$best_ntreelimit]
+}
+
+```
+
+Visualizing the results from tuning max.depth and min_child_weight:
+
+```{r Visualize Parameter Tuning 2}
+
+# Join results in dataset
+res_db = cbind.data.frame(cv_params, auc_vec, error_vec)
+names(res_db)[3:4] = c("auc", "error") 
+res_db$max_depth = as.factor(res_db$max_depth) # Convert tree number to factor for plotting
+res_db$min_child_weight = as.factor(res_db$min_child_weight) # Convert node size to factor for plotting
+
+# Print AUC heatmap
+g_6 = ggplot(res_db, aes(y = max_depth, x = min_child_weight, fill = auc)) + # set aesthetics
+  geom_tile() + # Use geom_tile for heatmap
+  theme_bw() + # Set theme
+  scale_fill_gradient2(low = "blue", # Choose low color
+    mid = "white", # Choose mid color
+    high = "red", # Choose high color
+    midpoint =mean(res_db$auc), # Choose mid point
+    space = "Lab", 
+    na.value ="grey", # Choose NA value
+    guide = "colourbar", # Set color bar
+    aesthetics = "fill") + # Select aesthetics to apply
+  labs(x = "Minimum Child Weight", y = "Max Depth", fill = "AUC") # Set labels
+g_6 # Generate plot
+
+# Print error heatmap
+g_7 = ggplot(res_db, aes(y = max_depth, x = min_child_weight, fill = error)) + # set aesthetics
+  geom_tile() + # Use geom_tile for heatmap
+  theme_bw() + # Set theme
+  scale_fill_gradient2(low = "blue", # Choose low color
+    mid = "white", # Choose mid color
+    high = "red", # Choose high color
+    midpoint =mean(res_db$error), # Choose mid point
+    space = "Lab", 
+    na.value ="grey", # Choose NA value
+    guide = "colourbar", # Set color bar
+    aesthetics = "fill") + # Select aesthetics to apply
+  labs(x = "Minimum Child Weight", y = "Max Depth", fill = "Error") # Set labels
+g_7 # Generate plot
+
+res_db # Print results
+```
+
+Based on these visualizations and the chart outcome, AUC values are highest for Minimum Child Weights of 5, 7, and 15 and Max Depth of 5 while error rates are lowest for Minimum Child Weights of 5, 7, 10, and 15 and Max Depth of 3 and 5. From these I will select values of Minimum Child Weight of 5 and Max Depth of 5.
+
+Next I will turn to tuning gamma, which is the minimum loss reduction necessary to make a further partition at a given node.
+
+```{r Parameter Tuning 3}
+
+gamma_vals = c(0, 0.05, 0.1, 0.15, 0.2) # Create vector of gamma values
+
+set.seed(111111)
+auc_vec = error_vec = rep(NA, length(gamma_vals))
+for(i in 1:length(gamma_vals)){
+  bst_tune = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = gamma_vals[i], # Set minimum loss reduction for split
+               
+              nrounds = 150, # Set number of rounds
+              early_stopping_rounds = 40, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+               
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc", # Set evaluation metric to use
+              eval_metric = "error") # Set evaluation metric to use
+ 
+  auc_vec[i] = bst_tune$evaluation_log$test_auc_mean[bst_tune$best_ntreelimit]
+  error_vec[i] = bst_tune$evaluation_log$test_error_mean[bst_tune$best_ntreelimit]
+}
+```
+
+Examining the results from tuning gamma:
+
+```{r Visualize Parameter Tuning 3}
+
+# Join gamma to values
+cbind.data.frame(gamma_vals, auc_vec, error_vec)
+
+```
+
+Based on this, a gamma value of 0.05 gives the highest AUC value and lowest error rate combination.
+
+Before proceeding to some additional tuning, I want to re-calibrate the number of rounds to use for an optimal model:
+
+```{r Recalibrate Optimal Tree Number}
+
+# Use xgb.cv to run cross-validation inside xgboost
+set.seed(111111)
+bst = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+             
+              weight = weight_vec, # Set weights
+               
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+bst$best_ntreelimit
+
+```
+
+From this the optimal number of trees to use with our current set of parameters is now 63 (from 33) so I will move the nrounds parameter to 200 to ensure we are using enough trees and move the early stopping parameter to 70.
+
+I will now tune the subsample and colsample_by_tree parameters:
+
+```{r Parameter Tuning 4}
+
+subsample = c(0.6, 0.7, 0.8, 0.9, 1) # Create vector of subsample values
+colsample_by_tree = c(0.6, 0.7, 0.8, 0.9, 1) # Create vector of col sample values
+
+# Expand grid of tuning parameters
+cv_params = expand.grid(subsample, colsample_by_tree)
+names(cv_params) = c("subsample", "colsample_by_tree")
+
+# Create vectors to store results
+auc_vec = error_vec = rep(NA, nrow(cv_params)) 
+
+# Loop through parameter values
+for(i in 1:nrow(cv_params)){
+  set.seed(111111)
+  bst_tune = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = cv_params$subsample[i], # Set proportion of training data to use in tree
+              colsample_bytree = cv_params$colsample_by_tree[i], # Set number of variables to use in each tree
+               
+              nrounds = 200, # Set number of rounds
+              early_stopping_rounds = 70, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+               
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc", # Set evaluation metric to use
+              eval_metric = "error") # Set evaluation metric to use
+  
+  auc_vec[i] = bst_tune$evaluation_log$test_auc_mean[bst_tune$best_ntreelimit]
+  error_vec[i] = bst_tune$evaluation_log$test_error_mean[bst_tune$best_ntreelimit]
+}
+
+```
+
+Visualizing the results of tuning the subsample and colsample_by_tree parameters:
+
+```{r Visualize Parameter Tuning 4}
+
+res_db = cbind.data.frame(cv_params, auc_vec, error_vec)
+names(res_db)[3:4] = c("auc", "error") 
+res_db$subsample = as.factor(res_db$subsample) # Convert tree number to factor for plotting
+res_db$colsample_by_tree = as.factor(res_db$colsample_by_tree) # Convert node size to factor for plotting
+
+g_8 = ggplot(res_db, aes(y = colsample_by_tree, x = subsample, fill = auc)) + # set aesthetics
+  geom_tile() + # Use geom_tile for heatmap
+  theme_bw() + # Set theme
+  scale_fill_gradient2(low = "blue", # Choose low color
+    mid = "white", # Choose mid color
+    high = "red", # Choose high color
+    midpoint =mean(res_db$auc), # Choose mid point
+    space = "Lab", 
+    na.value ="grey", # Choose NA value
+    guide = "colourbar", # Set color bar
+    aesthetics = "fill") + # Select aesthetics to apply
+  labs(x = "Subsample", y = "Column Sample by Tree", fill = "AUC") # Set labels
+g_8 # Generate plot
+
+g_9 = ggplot(res_db, aes(y = colsample_by_tree, x = subsample, fill = error)) + # set aesthetics
+  geom_tile() + # Use geom_tile for heatmap
+  theme_bw() + # Set theme
+  scale_fill_gradient2(low = "blue", # Choose low color
+    mid = "white", # Choose mid color
+    high = "red", # Choose high color
+    midpoint =mean(res_db$error), # Choose mid point
+    space = "Lab", 
+    na.value ="grey", # Choose NA value
+    guide = "colourbar", # Set color bar
+    aesthetics = "fill") + # Select aesthetics to apply
+  labs(x = "Subsample", y = "Column Sample by Tree", fill = "Error") # Set labels
+g_9 # Generate plot
+
+res_db
+
+```
+
+Based on these visualizations and the chart outcome, AUC values are highest for Subsample 0.6, 0.7, and 0.9 and Column Sample by Tree of 0.9 and 1.0 while error rates are lowest for Subsample of 0.6 and Column Sample by Tree of 0.8 and 1.0. From these I will select values of Subsample of 0.6 and Column Sample by Tree of 1.0.
+
+The final step in the tuning process is to lower eta, the learning rate, and add more trees. I will try a couple of different eta values here:
+
+```{r Parameter Tuning 5}
+
+# Use xgb.cv to run cross-validation inside xgboost
+# eta value of 0.3
+set.seed(111111)
+bst_mod_1 = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.3, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = 0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+# Use xgb.cv to run cross-validation inside xgboost
+# eta value of 0.1
+set.seed(111111)
+bst_mod_2 = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.1, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = 0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+# Use xgb.cv to run cross-validation inside xgboost
+# eta value of 0.05
+set.seed(111111)
+bst_mod_3 = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.05, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = 0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+# Use xgb.cv to run cross-validation inside xgboost
+# eta value of 0.01
+set.seed(111111)
+bst_mod_4 = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.01, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = 0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+# Use xgb.cv to run cross-validation inside xgboost
+# eta value of 0.005
+set.seed(111111)
+bst_mod_5 = xgb.cv(data = dtrain, # Set training data
+              
+              nfold = 5, # Use 5 fold cross-validation
+               
+              eta = 0.005, # Set learning rate
+              max.depth = 5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample = 0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 1000, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+```
+
+Now I will plot the error rate over different learning rates:
+
+```{r Visualizing Parameter Tuning 5}
+
+# Extract results for model with eta = 0.3
+pd1 = cbind.data.frame(bst_mod_1$evaluation_log[,c("iter", "test_error_mean")], rep(0.3, nrow(bst_mod_1$evaluation_log)))
+names(pd1)[3] = "eta"
+
+# Extract results for model with eta = 0.1
+pd2 = cbind.data.frame(bst_mod_2$evaluation_log[,c("iter", "test_error_mean")], rep(0.1, nrow(bst_mod_2$evaluation_log)))
+names(pd2)[3] = "eta"
+
+# Extract results for model with eta = 0.05
+pd3 = cbind.data.frame(bst_mod_3$evaluation_log[,c("iter", "test_error_mean")], rep(0.05, nrow(bst_mod_3$evaluation_log)))
+names(pd3)[3] = "eta"
+
+# Extract results for model with eta = 0.01
+pd4 = cbind.data.frame(bst_mod_4$evaluation_log[,c("iter", "test_error_mean")], rep(0.01, nrow(bst_mod_4$evaluation_log)))
+names(pd4)[3] = "eta"
+
+# Extract results for model with eta = 0.005
+pd5 = cbind.data.frame(bst_mod_5$evaluation_log[,c("iter", "test_error_mean")], rep(0.005, nrow(bst_mod_5$evaluation_log)))
+names(pd5)[3] = "eta"
+
+# Join datasets
+plot_data = rbind.data.frame(pd1, pd2, pd3, pd4, pd5)
+
+# Converty ETA to factor
+plot_data$eta = as.factor(plot_data$eta)
+
+# Plot points
+g_10 = ggplot(plot_data, aes(x = iter, y = test_error_mean, color = eta))+
+  geom_point(alpha = 0.5) +
+  theme_bw() + # Set theme
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Number of Trees", title = "Error Rate v Number of Trees",
+       y = "Error Rate", color = "Learning \n Rate")  # Set labels
+g_10
+
+# Plot lines
+g_11 = ggplot(plot_data, aes(x = iter, y = test_error_mean, color = eta))+
+  geom_smooth(alpha = 0.5) +
+  theme_bw() + # Set theme
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  labs(x = "Number of Trees", title = "Error Rate v Number of Trees",
+       y = "Error Rate", color = "Learning \n Rate")  # Set labels
+g_11
+
+```
+
+From this it looks like an eta value of 0.05 gives the best results over about 50 trees.
+
+### Final XGBoost Model
+
+I will now fit our final model using our tuned parameters:
+
+```{r}
+
+set.seed(111111)
+finalModel = xgboost(data = dtrain, # Set training data
+              
+              eta = 0.05, # Set learning rate
+              max.depth =  5, # Set max depth
+              min_child_weight = 5, # Set minimum number of samples in node to split
+              gamma = 0.05, # Set minimum loss reduction for split
+              subsample =  0.6, # Set proportion of training data to use in tree
+              colsample_bytree = 1.0, # Set number of variables to use in each tree
+               
+              nrounds = 150, # Set number of rounds
+              early_stopping_rounds = 50, # Set number of rounds to stop at if there is no improvement
+               
+              verbose = 1, # 1 - Prints out fit
+              nthread = 1, # Set number of parallel threads
+              print_every_n = 20, # Prints out result every 20th iteration
+              
+              weight = weight_vec, # Set weights
+              
+              objective = "binary:logistic", # Set objective
+              eval_metric = "auc",
+              eval_metric = "error") # Set evaluation metric to use
+
+```
+
+From this final model, I will build a set of predictions using the cutoff value for the prediction based on the optimal.cutpoints function instead of choosing an arbitrary number to test the accuracy of the final model.
+
+```{r XGBoost Final Prediction}
+
+finalPreds = predict(finalModel, dtrain) # Create predictions for xgboost model
+
+predsData = cbind.data.frame(finalPreds , fgTrain$good)
+names(predsData) <- c("predictions", "response")
+oc = optimal.cutpoints(X = "predictions",
+                       status = "response",
+                       tag.healthy = 0,
+                       data = predsData,
+                       methods = "MaxEfficiency")
+
+finalPreds1 = predict(finalModel, dtest) # Create predictions for xgboost model
+
+predsData = cbind.data.frame(finalPreds1 , fgTest$good) 
+
+# Convert predictions to classes, using optimal cut-off
+finalPredsGood = rep(0, length(finalPreds1))
+finalPredsGood[finalPreds1 >= oc$MaxEfficiency$Global$optimal.cutoff$cutoff[1]] = 1
+
+u <- union(finalPredsGood,  fgTest$good) # Join factor levels
+t <- table(factor(finalPredsGood, u), factor(fgTest$good, u)) # Create table
+confusionMatrix(t) # Produce confusion matrix
+
+```
+
+For the final model there is an accuracy of 0.8101, a positive predictive value of 0.8456 and a negative predictive value of 0.4402. Thus the tuning of the model generally resulted in improved values. The initial model had an accuracy of 0.7764, a positive predictive value of 0.8468 and a negative predictive value of 0.3414.
+
+### Examining Variable Performance:
+
+Looking at the ranking of variable performance from the final model:
+
+```{r Variable Importance}
+
+# Extract importance
+imp_mat <- xgb.importance(model = finalModel)
+
+# Plot importance (top 10 variables)
+xgb.plot.importance(imp_mat, top_n = 10)
+
+```
+
+The XGBoost model after tuning has identified the above 10 variables as being the most important in identifying whether a FG attempt is good. As expected, **distance** plays the most critical role in the outcome of the model. There is a large drop off in the variable's importance from distance to the next variable.
+
+**Accuracy** is the 2nd most important variable. This is a proxy for the individual kickers in the data set, but I think it is valuable to see that a kicker's accuracy is actually predictive of the outcome of their next kick. This is not the most critical variable which indicates that while accuracy does play a role, it does not guarantee the outcome of an attempt and there are actually more critical variables to consider.
+
+**Temp** comes next in importance. A cold ball is much harder to kick and therefore I expected temperature to play a key role in the outcome. Also, during a colder game it is harder for a kicker to stay warm and therefore this will likely also play a role in the kick's outcome.
+
+After temperature comes **elapsedtime**, which makes some logical sense. As the game progresses the FGs typically become more crucial to the outcome of the game and therefore more pressure is applied to the kicker. However, this does not mean that the increased pressure leads to a kicker being less likely to make a kick, it just means that where the FG is attempted within the game plays an important role in the outcome of the kick.
+
+After elapsed time comes two variables that are related to betting odds that are set prior to the game: **ou** and **sprv**. These are the over-under for the game and the spread for the game. As FGs add points for a team, it makes some sense that these values would play a role in the outcome of FG attempts. These variables would be less likely to be useful to coaches making decisions as their influence on an individual kick seems somewhat odd. However, because FGs play a role in point totals for a game, I think it is understandable that there would be connection between FGs being good and these two variables.
+
+The remaining four variables are: **humd** (humidity level of a game), **NumKicks** (number of attempts the FG kicker made within the data set),  **wspd** (wind speed), and **dseq** (play sequence within the drive). All of these variables, except maybe down sequence, make logical sense as to their importance to the model.
+
+Interestingly, a few variables that I thought would be critical did not make the top 10 list OR I thought they would be more critical, but ranked lower in the top 10 list:
+
+* **Wspd** (wind speed) was the 9th most important value. Because the direction of the kick is not included in the data set, even if this was joined to the **wdir** (wind direction), it may prove to not play as critical of a role as I expected. I do think wind speed is critical to FGs being successful, but the data would need to be refined to determine the direction of the kick, the direction of the wind, and the wind speed in order to be truly valuable.
+
+* **Surface** did not play a critical role either. I thought whether the kicker was on turf or grass would play a key role in the success of an attempt. This variable could be more useful if it was interacted with the week of the season. While NFL grass fields are carefully attended to, I would expect late season games on grass to have a lower success rate than late season games on turf.
+
+* **Condition** also did not play a critical role. While there a number of levels within this variable, I expected it to be important as I would think a game where it is sunny or cloudy would allow for more made FGs than a game where it was snowing or raining. Likewise I would have expected domes to be easily distinguishable from stadiums that are open-air in relation to successful attempts.
+
+
+### Decision Tree utilizing SMOTE
+
+Now that I have examined some of the critical outcomes from the XGBoost model, I want to turn to a simpler model that could be useful from a coaching perspective in assessing whether their team should attempt a FG in a given game situation. This simpler model will be a decision tree. A decision tree will allow a coach to assess critical variables during an in-game situation in order to make better decisions based on what the data shows. I think a number of the variables that were determined as being critical will also be important within this simpler model. However, knowing the specific cutpoints within these variables will be important for coaches as they evaluate a possible FG attempt.
+
+As my data set is imbalanced (while it is not extremely imbalanced, I think it will be important to account for this), I will use the Synthetic Minority Oversampling Technique (SMOTE) to create samples from my final data set (fgDataFinal1). This will help ensure that model does not overfit based on the number of good attempts in order that it can better evaluate what are the key variables when assessing whether an attempt will be good. Within the SMOTE function, the amount of samples to generate for the minority class (in this case good == 0) is set using perc.over. I will set this parameter to 100 to have an equal amount of made and misses in my data set.
+
+While SMOTE will help with this process, the limitation is that there may be wide variance from one tree to the next and the model does not account for a random forest process that is used under XGBoost. Therefore, using this model sacrifices the reliability of the results, but it does offer a simpler representation that is more easily interpreted by users.
+
+#### Training and Testing Set
+
+I will still use an 80/20 split between training and testing set. I will use the fgDataFinal1 data set which includes dummy variables for each of the categorical levels. This will allow me to use the same training and testing set as above:
+
+* fgTrain - training set from above
+* fgTest - testing set from above
+
+#### SMOTE Decision Tree and Predictions
+
+I will use a cutoff of 0.5 for simplicity:
+
+```{r SMOTE Decision Tree}
+# Load libraries:
+
+library(rpart)				  # Popular decision tree algorithm
+library(rattle)					# Fancy tree plot
+library(rpart.plot)			# Enhanced tree plots
+library(RColorBrewer)		# Color selection for fancy tree plot
+library(DMwR)           # Load data mining with R for SMOTE
+
+# Run SMOTE
+set.seed(1222222)                   # For reproducing results
+smoteFGData = SMOTE(good ~ .,       # Set prediction formula
+                   fgTrain,         # Set data
+                   perc.over = 100) # Select oversampling for minority class
+
+# Build tree
+set.seed(1222222)                   # For reproducing results
+tree_1 = rpart(good ~.,             # Set tree formula
+                data = smoteFGData) # Set data
+fancyRpartPlot(tree_1)              # Plot fancy tree
+
+
+# Predict test data
+prediction = predict(tree_1, fgTest)
+
+
+# Extract probabilities and produce table
+plotData = cbind.data.frame(prediction[,2], fgTest$good)
+names(plotData) = c("probability", "response")
+preds1 <- rep(0, nrow(plotData))              # Create vector for predictions with default value
+preds1[which(plotData$probability >= 0.5)] = 1   # Select good FGs based on predictions (level set at 0.5)
+confusionMatrix(table(preds1, plotData$response))     # Create confusion matrix
+```
+
+So our SMOTE decision tree is giving us an accuracy of 0.7727, which is just slightly lower than the initial XGBoost model. This was somewhat expected given that XGBoost is able to account for quite a bit more detail within the model due to using random forests versus a single tree. However, this model does give some easy decision nodes that a coach could utilize. Most of these revolve around distance decisions, but there is also a decision based on whether or not the attempt is being made in the 2000 season (this is a bit odd and I will explain more below).
+
+I will see if I can increase the accuracy of this model by tuning the complexity parameter of the tree. The complexity parameter looks at each split and determines whether the split actually decreases the lack of fit, if the decrease is not above the specified parameter than a split is not made.
+
+First, let's look at the maximal tree:
+
+```{r SMOTE Maximal Tree}
+
+# Build tree
+set.seed(1222222)
+tree_2 = rpart(good ~.,                          # Set tree formula
+                data = smoteFGData,              # Set data
+                control = rpart.control(cp = 0)) # Select cp 
+plotcp(tree_2)
+```
+
+The complexity parameter (cp) appears to be minimized about 0.0012.
+
+```{r Tuning SMOTE Tree}
+
+# Build tree
+set.seed(1222222)                                        # For reproducing results
+tree_3 = rpart(good ~.,                                  # Set tree formula
+               data = smoteFGData,                       # Set data
+               control = rpart.control(cp = 0.0012))     # Set complexity parameter
+
+
+# Predict test data
+prediction1 = predict(tree_3, fgTest)
+
+
+# Extract probabilities and produce table
+plotData1 = cbind.data.frame(prediction1[,2], fgTest$good)
+names(plotData1) = c("probability", "response")
+preds2 <- rep(0, nrow(plotData1))              # Create vector for predictions with default value
+preds2[which(plotData1$probability >= 0.5)] = 1   # Select good FGs based on predictions (level set at 0.5)
+confusionMatrix(table(preds2, plotData1$response))     # Create confusion matrix
+
+
+```
+
+This led to a decrease in our accuracy, which gives an indication that this tuning has now overfit the training set. Therefore, the accuracy of the first SMOTE decision tree may be close to the optimal tree that we can get using this technique. 
+
+#### Reviewing Output from SMOTE Decision Tree
+
+I do want to once again rehearse the initial decision tree from the SMOTE technique as I think it could provide a useful decision matrix for a coach:
+
+```{r Initial SMOTE Decision Tree}
+
+fancyRpartPlot(tree_1, yesno = 2)
+rpart.rules(tree_1, extra = 4, cover = TRUE)
+```
+
+This decision tree can help coaches gain some useful insights into evaluating a FG attempt. This is an extremely simplified outcome, but I think it shows how crucial distance is in evaluating FG attempts. One note about this outcome, SMOTE is not set up to handle variables that are not continuous, but many of the variables in this data set are categorical in nature (dummy variables were created). Therefore some of the outcomes do not make sense with what we would expect from the data. For example, seas.2000 should only have values of 0 and 1, but SMOTE has created values that are not equivalent to these binary variables and are continuous values between 0 and 1. 
+
+While this limits the usefulness of the outcome, I still think a good portion of this tree is valuable. Let's assume that we are not dealing with the 2000 season, then we are dealing with the right portion of the tree. From here we can see that our first decision as a coach evaluating the attempt would be, is the FG distance greater than or equal to 34 yards? If not, we have an 89% chance of making the field goal. If it is then we have another branch to evaluate: is the FG attempt greater than or equal to 48 yards? If not, we have a 62% chance of making the FG. If it is, our chances of making the FG drop down to 41%. Therefore the use of a decision tree, while the accuracy of the model is lower than under XGBoost, provides some good information to a coach who is evaluating whether an attempt at a FG should be made. The XGBoost model also emphasized the importance of distance and it is good that this simplified model also found this to be an extremely critical variable.
+
+
+## Conclusion and Future Work
+
+
+Making decisions in high stress NFL game situations can be a very challenging endeavor. While coaches depend a great deal on instincts that have been built up over their years of experience, these "gut-feelings" can often times be biased and may not actually align with statistical results. Therefore, places where decision processing for coaches can be improved will help in giving them a greater advantage within the game. FG attempts are a critical portion of the game and while there are many variables that affect the outcome of the kick, identifying the most critical variables in the outcome of an attempt can help coaches make more consistent decisions. As mentioned above, there is never likely any in-game situation that will ensure that a FG attempt is good. However, given the accuracy of NFL kickers, it is possible that identifying the presence of certain other variables, could increase the likelihood that an attempt will prove successful.
+
+This project attempted to identify some of the most critical variables in having a FG attempt be good based on a machine learning process. I focused on NFL data as this is generally collected with more accuracy than at other levels and given the consistency of kickers at the NFL level, it gives a better indication of what other variables are critical to FG attempts being successful. As expected, distance is likely the most critical variable in determining the success of a FG. While NFL kickers have slowly increased the distance at which an attempt can be successful, there are certainly more aspects that come into play once the distance increases past a certain level. The SMOTE decision tree makes this very visible in that FG attempts greater than or equal to 48 yards are less likely to be made than at closer distances.
+
+Overall, I do think these models demonstrate the value of conducting a machine learning process on a data set to be able to draw important conclusions. Sometimes the results of the machine learning model agree with expectations (e.g. distance's influence of FG attempts) and sometimes they offer new or improved insights (e.g. the influence of elapsed time on a FG's effectiveness). I think this process demonstrated this better for me, but also signaled that there is a careful balance required between model complexity and the usefulness to outside users. As I have some coaching experience within football, I have been able to see a move to greater receptivity to statistical and mathematical approaches, but these models need to be presented in terms and utilize approaches that are familiar to coaches. Without being able to draw this connection for coaches, it is unlikely that they will forego depending strictly on their instincts.
+
+I think there are some good opportunities for further developments within the models presented above. A refinement of some of the key variables would likely give greater predictive power. For example, accurate wind speed and direction in relation to the kicker at the time of an attempt could prove to be a critical variable in determining whether an attempt might be good. I think incorporating additional geometric variables could also help refine this model. Claus Herther showed the usefulness of including this information in the article that was cited above in the review of previous work on this topic. With the development of Next Gen stats in the NFL, some of this information can now be more easily collected and analyzed. As a FG kick is based on a great deal of physics and geometry, a better assessment of this prior to the attempt could prove to be very helpful. However, this information can get complex really quickly and there would need to be a good balance between complexity and usefulness for coaches.
+
+Another area that I think it would be helpful to build out in more detail would be a decision matrix that incorporates more than just distance. Ideally, if the 3 most critical variables after distance that could be easily assessed were included in a decision matrix, it could be much easier for coaches to evaluate an in-game situation to determine the probability of a FG attempt being good. This would likely require a great deal of assessment of decision tree output and refinement at this level to identify these other critical variables once distance is accounted for within the model.
+
+I think this project has been an interesting foray into how machine learning can help sports teams make more consistent decisions within a game. While a number of further refinements are likely required, it does demonstrate that useful insights can be drawn from sports data to help teams gain advantages instead of depending strictly on instincts.
+
+
+## Bibliography
+
+Clark, T.K., Johnson, A.W., & Stimpson, A.J. 2013. Going for Three: Predicting the Likelihood of Field Goal Success\
+    with Logistic Regression. Massachusetts Institute of Technology, MA.
+
+Clement, S. 2017. Kicking NFL field goals looks hard-Correctly predicting them is even harder. For SBNation.\
+    (https://www.fieldgulls.com/2017/12/20/16793460/seattle-seahawks-blair-walsh-field-goal-prediction-nfl-analytics)
+    
+Herther, C. 2020. Bayesian Methods for Modeling Field Goals in NFL Football. For Calogica.\
+    (https://calogica.com/pymc3/python/2020/01/10/nfl-field-goals-bayes.html)
+    
+Mosqueda, J. 2018. Expected Points: A Better Way to Analyze Place Kicking in the NFL and in College. For Optimum Scouting.\
+    (http://www.optimumscouting.com/news/expected-points-a-better-way-to-analyze-place-kick)
