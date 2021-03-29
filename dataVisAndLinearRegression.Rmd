@@ -1,0 +1,146 @@
+---
+title: "Assignment 1"
+author: "Anthony Stachowski"
+date: "8/26/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Assignment 1 
+
+For the first assignment please analyse the following dataset and identify the key features which determine the premium charged to insurance clients.
+
+The dataset is stored in `insurance_dat.rda`. To load the data into the workspace, run:
+```{r insurance_load}
+load("insurance_dat.rda")
+```
+
+Lets first look at the data available:
+
+```{r View insurance}
+head(insurance)
+summary(insurance)
+tail(insurance)
+```
+
+The data contains records for 1338 individuals and contains 8 variables.
+The features are:
+
+* age - The age of the individual.
+* sex - The sex of the individual.
+* bmi - The body mass index of the individual
+* children - The number of children the individual has
+* smoker - Yes/No if the individual is a smoker
+* region - The region of the country the individual comes from
+* charges - The insurance premium for the individual
+
+```{r Visualise insurance}
+library(ggplot2)
+
+g_1 <- ggplot(data = insurance, aes(x = bmi, y = charges, color = smoker, shape = sex)) +
+  geom_point(alpha = 0.5, size = 4) +
+  labs(x = "BMI", y = "Insurance Charges", color = "Smoker") +
+  theme_set(theme_bw(base_size = 22) ) +
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid 
+  scale_color_manual(values = c("yes" = "red", "no" = "blue"),
+                    labels = c("yes" = "Smoker", "no" = "Non-smoker"))
+g_1
+```
+
+
+### Tasks:
+
+* Create two visualizations which may reveal interesting relationships in the data
+
+```{r additional visualizations}
+
+g_2 <- ggplot(data = insurance, aes(x = age, y = charges, color = smoker)) +
+  geom_point(alpha = 0.4, size = 4) +
+  labs(x = "Age", y = "Insurance Charges") +
+  theme_set(theme_bw(base_size = 15))  +
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank()) + # Remove grid
+  scale_color_manual(values = c("yes" = "red", "no" = "blue"),
+                    labels = c("yes" = "Smoker", "no" = "Non-smoker"))
+
+g_2
+
+g_3 <- ggplot(data = insurance, aes(x = smoker, y = charges)) +
+  geom_boxplot(aes(fill = smoker)) +
+  labs(x = "Smoker", y = "Insurance Charges") +
+  theme_set(theme_bw(base_size = 15))  +
+  theme(panel.grid.major = element_blank(), # Remove grid
+        panel.grid.minor = element_blank(), # Remove grid
+        panel.border = element_blank(), # Remove grid
+        panel.background = element_blank(), # Remove grid
+        legend.position = "none") +  # Remove legend
+  scale_fill_manual(values = c("yes" = "red", "no" = "blue"))
+  
+
+g_3
+
+```
+
+
+* Run a linear regression using the base variables in the dataset to predict insurance premiums
+
+```{r linear regression}
+
+fit_1 <- lm(charges ~ age + sex + bmi + children + smoker + region, # Set formula
+            data = insurance) # Set dataset
+
+summary(fit_1)
+
+```
+
+* What features have positive/negative effects on the insurance premium?
+
+The positive and negative effects are indicated by whether the estimate of the coefficient is negative or positive:
+
+**age**: Positive Effect - as age increases, insurance charge increases; the model also indicates that this variable is significant
+
+**sexmale** (as this is a categorical variable, female is included in the intercept term): Negative Effect - being male leads to higher insurance charge; the model indicates this variable is not significant
+
+**bmi**: Positive Effect - as BMI increases, insurance charge increases; the model also indicates that this variable is significant
+
+**children**: Positive Effect - as the number of children grows, insurance charge increases; the model also indicates that this variable is significant
+
+**smokeryes** (as this a categorical variable, non-smoker is included in the intercept term): Positive Effect - being a smoker leads to a higher insurance charge; the model also indicates that this variable is significant
+
+**regionnorthwest** (as this is part of a categorical variable with 4 levels, Northeast is included in the intercept term): Negative Effect - if a person is from the Northwest, their insurance charge is expected to be lower; the model indicates this variable is not significant
+
+**regionsoutheast** (as this is part of a categorical variable with 4 levels, Northeast is included in the intercept term): Negative Effect - if a person is from the Southeast, their insurance charge is expected to be lower; the model indicates this variable is significant, but not extremely so
+
+**regionsouthwest** (as this is part of a categorical variable with 4 levels, Northeast is included in the intercept term): Negative Effect - if a person is from the Southwest, their insurance charge is expected to be lower; the model indicates this variable is significant, but not extremely so
+
+* Add at least two interaction terms in the model
+
+```{r}
+
+fit_2 <- lm(charges ~ age + sex + bmi + children + smoker + region + (smoker * bmi) + (smoker * age), # Set formula
+            data = insurance) # Set dataset
+
+summary(fit_2)
+
+```
+
+
+* How has the inclusion of interaction terms affected the model/coefficients?
+
+The inclusion of the two interaction terms (smoker x bmi and smoker x age) have changed the magnitude of the the single variables and also the significance of the variables.  The intercept's magnitude has become more negative as the additional variables are capturing more of the difference in charges.  It has also become less significant in the model.  The effect of age alone has increased and it still remains significant.  The effect of sex-male has become more negative in magnitude, but its significance has dropped.  The effect of bmi alone has decreased and its significance has dropped.  This is likely due to the inclusion of the interaction term smoker x bmi is capturing most of the effect of bmi on the insurance charge.  As bmi increases for a smoker, insurance charge goes up and this variable is significant.  The effect of children has increased and it remains significant.  The effect of being a smoker has changed signs from original model and remains significant.  This change in sign is likely due to the inclusion of both interaction variables that are also examining the influence of being a smoker with the interaction of other variables.  The region variables' magnitude has increased (become more negative) and they have all increased in significance within the model.
+
+The adjusted R-squared for the model has increased with the inclusion of these two interaction variables (from 74.94% to 83.97%).  Therefore, there is some indication that this model does better in projecting the insurance charge for an individual than the first model.
+
+
+
+Please submit an R-script with the code used for your analysis and a document answering the specific questions, you can use word, pdf etc. Optionally you can include both code and text in an R-markdown document.
+
+Assignments can be submitted by email to mbarron2@nd.edu. The due date for this assignment in one week after the class date. Either 08/31/2020 or 09/02/2020 depending on if you attend the Monday or Wednesday class.
